@@ -3,9 +3,9 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
-      "start": "node --loader tsx server/index.ts",
-      "migrate": "node --loader tsx server/migrate.ts",
-      "seed": "node --loader tsx server/seed.ts",
+      "start": "node --import tsx server/index.ts",
+      "migrate": "node --import tsx server/migrate.ts",
+      "seed": "node --import tsx server/seed.ts",
       "dev": "tsx watch server/index.ts"
     },
     "dependencies": {
