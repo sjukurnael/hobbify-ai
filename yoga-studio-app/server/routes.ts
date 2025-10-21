@@ -21,8 +21,13 @@ app.get('/auth/google',
 );
 
 // Google OAuth callback
-app.get('/auth/google/callback',
+app.get('/auth/google/callback',(req, res, next) => {
+  console.log('🔵 CALLBACK HIT!');
+  console.log('Query params:', req.query);
+  next();
+},
   passport.authenticate('google', { 
+    
     failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:8080'}`
   }),
   (req, res) => {
