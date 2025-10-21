@@ -44,16 +44,26 @@ app.get('/auth/google/callback',
       return res.redirect(`${frontendUrl}/classes?error=no-user`);
     }
     
-    if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
-      console.log('↪️ Redirecting to classes (not authorized)');
-      res.redirect(`${frontendUrl}/classes?message=not-authorized`);
-    } else if (intendedRole === 'studio-owner' && (user.role === 'admin' || user.role === 'instructor')) {
-      console.log('↪️ Redirecting to studio');
-      res.redirect(`${frontendUrl}/studio`);
-    } else {
-      console.log('↪️ Redirecting to classes');
-      res.redirect(`${frontendUrl}/classes`);
-    }
+    // ✅ EXPLICITLY SAVE SESSION BEFORE REDIRECT
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Session save error:', err);
+        return res.redirect(`${frontendUrl}/classes?error=session-failed`);
+      }
+      
+      console.log('💾 Session saved successfully');
+      
+      if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
+        console.log('↪️ Redirecting to classes (not authorized)');
+        res.redirect(`${frontendUrl}/classes?message=not-authorized`);
+      } else if (intendedRole === 'studio-owner' && (user.role === 'admin' || user.role === 'instructor')) {
+        console.log('↪️ Redirecting to studio');
+        res.redirect(`${frontendUrl}/studio`);
+      } else {
+        console.log('↪️ Redirecting to classes');
+        res.redirect(`${frontendUrl}/classes`);
+      }
+    });
   }
 );
 
