@@ -8,9 +8,13 @@ const app = express();
 
 // CORS - Allow frontend to make requests
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: [
+    'http://localhost:8080',
+    'https://fastidious-begonia-48215d.netlify.app'
+  ],
   credentials: true,
 }));
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
