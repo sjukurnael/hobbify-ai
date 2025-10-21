@@ -52,6 +52,7 @@ app.get('/auth/google/callback',
       }
       
       console.log('💾 Session saved successfully');
+      console.log('📤 Set-Cookie header:', res.getHeader('Set-Cookie'));
       
       if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
         console.log('↪️ Redirecting to classes (not authorized)');
