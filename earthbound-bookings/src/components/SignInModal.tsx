@@ -10,7 +10,8 @@ interface SignInModalProps {
 export const SignInModal = ({ open, onOpenChange }: SignInModalProps) => {
   const handleSignIn = (role: 'customer' | 'studio-owner') => {
     // Redirect to Google OAuth with role parameter
-    window.location.href = `http://localhost:3000/auth/google?role=${role}`;
+    const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+    window.location.href = `${API_URL}/auth/google?role=${role}`;
   };
 
   return (
