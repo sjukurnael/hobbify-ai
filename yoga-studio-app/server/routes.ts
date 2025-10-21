@@ -314,6 +314,26 @@ app.delete("/api/classes/:id", requireStudioOwner, async (req, res) => {
 // Protect existing POST route
 app.post("/api/classes", requireStudioOwner, async (req, res) => {
   // Your existing create class logic...
+  try {
+    console.log("Received data:", req.body);
+    
+    // Convert date strings to Date objects
+    const dataWithDates = {
+      ...req.body,
+      startTime: new Date(req.body.startTime),
+      endTime: new Date(req.body.endTime),
+    };
+    
+    const validatedData = insertClassSchema.parse(dataWithDates);
+    const newClass = await storage.createClass(validatedData);
+    res.status(201).json(newClass);
+  } catch (error: any) {
+    console.error("Error details:", error);
+    if (error.name === "ZodError") {
+      return res.status(400).json({ message: "Invalid class data", errors: error.errors });
+    }
+    res.status(500).json({ message: "Failed to create class" });
+  }
 });
 
   const httpServer = createServer(app);
