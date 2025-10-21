@@ -21,26 +21,37 @@ app.get('/auth/google',
 );
 
 // Google OAuth callback
-app.get('/auth/google/callback',(req, res, next) => {
-  console.log('🔵 CALLBACK HIT!');
-  console.log('Query params:', req.query);
-  next();
-},
-  passport.authenticate('google', { 
-    
+app.get('/auth/google/callback',
+  (req, res, next) => {
+    console.log('🔵 CALLBACK HIT!');
+    console.log('Query params:', req.query);
+    next();
+  },
+  passport.authenticate('google', {
     failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:8080'}`
   }),
   (req, res) => {
+    console.log('✅ AUTH SUCCESS');
+    console.log('User:', req.user);
+    console.log('Session ID:', req.sessionID);
+    
     const intendedRole = (req.session as any).intendedRole;
     const user = req.user as any;
-    
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
     
+    if (!user) {
+      console.log('❌ No user after auth');
+      return res.redirect(`${frontendUrl}/classes?error=no-user`);
+    }
+    
     if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
+      console.log('↪️ Redirecting to classes (not authorized)');
       res.redirect(`${frontendUrl}/classes?message=not-authorized`);
     } else if (intendedRole === 'studio-owner' && (user.role === 'admin' || user.role === 'instructor')) {
+      console.log('↪️ Redirecting to studio');
       res.redirect(`${frontendUrl}/studio`);
     } else {
+      console.log('↪️ Redirecting to classes');
       res.redirect(`${frontendUrl}/classes`);
     }
   }
