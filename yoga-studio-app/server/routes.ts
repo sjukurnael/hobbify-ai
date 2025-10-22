@@ -33,6 +33,7 @@ export async function registerRoutes(app: Express) {
       console.log('✅ AUTH SUCCESS');
       console.log('User:', req.user);
       console.log('Session ID:', req.sessionID);
+      console.log('Session:', req.session);
       
       const intendedRole = (req.session as any).intendedRole;
       const user = req.user as any;
@@ -51,7 +52,11 @@ export async function registerRoutes(app: Express) {
         }
         
         console.log('💾 Session saved successfully');
-        console.log('📤 Set-Cookie header:', res.getHeader('Set-Cookie'));
+        console.log('📤 Cookies will be set');
+        
+        // Manually set cookie header for debugging
+        const cookies = res.getHeader('Set-Cookie');
+        console.log('🍪 Set-Cookie:', cookies);
         
         if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
           console.log('↪️ Redirecting to classes (not authorized)');
