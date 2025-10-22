@@ -10,8 +10,9 @@ const app = express();
 const PgSession = connectPg(session);
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Trust proxy - CRITICAL for Railway
+// Trust proxy - MUST BE FIRST
 app.set('trust proxy', 1);
+app.enable('trust proxy');
 
 // CORS must come BEFORE session
 app.use(cors({
@@ -49,12 +50,15 @@ app.use(session({
   }
 }));
 
-// Debug middleware - ADD THIS
+// Debug middleware
 app.use((req, res, next) => {
   console.log('📍', req.method, req.path);
   console.log('🍪 Cookies:', req.headers.cookie);
   console.log('🔑 Session ID:', req.sessionID);
-  console.log('👤 User:', (req.user as any)?.email || 'Not authenticated');
+  
+  const user = req.user as any;
+  console.log('👤 User:', user?.email || 'Not authenticated');
+  
   next();
 });
 
