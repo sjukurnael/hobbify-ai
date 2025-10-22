@@ -1,79 +1,76 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import type { User } from "@/types";
-import { authApi } from "@/services/api";
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { authApi, tokenManager } from '@/services/api';
+import { useSearchParams } from 'react-router-dom';
+import type { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: () => void;
-  logout: () => void;
   isAdmin: boolean;
   isInstructor: boolean;
-  isMember: boolean;
-  isStudioOwner: boolean; // Add this
-  showSignInModal: boolean; // Add this
-  setShowSignInModal: (show: boolean) => void; // Add this
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    checkAuth();
+    // Check for token in URL (from OAuth redirect)
+    const token = searchParams.get('token');
+    if (token) {
+      tokenManager.setToken(token);
+      // Remove token from URL
+      searchParams.delete('token');
+      setSearchParams(searchParams);
+    }
+
+    // Load user if token exists
+    loadUser();
   }, []);
 
-  const checkAuth = async () => {
+  const loadUser = async () => {
+    const token = tokenManager.getToken();
+    
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const currentUser = await authApi.getCurrentUser();
-      setUser(currentUser);
+      const userData = await authApi.getCurrentUser();
+      setUser(userData);
     } catch (error) {
+      console.error('Failed to load user:', error);
+      tokenManager.removeToken();
       setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const login = () => {
-    setShowSignInModal(true);
-  };
-
-  const logout = () => {
-    authApi.logout();
+  const logout = async () => {
+    await authApi.logout();
     setUser(null);
   };
 
-  const isAdmin = user?.role === "admin";
-  const isInstructor = user?.role === "instructor";
-  const isStudioOwner = isAdmin || isInstructor;
+  const isAdmin = user?.role === 'admin';
+  const isInstructor = user?.role === 'instructor';
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        isAdmin,
-        isInstructor,
-        isMember: user?.role === "member",
-        isStudioOwner,
-        showSignInModal,
-        setShowSignInModal,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, isAdmin, isInstructor, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}

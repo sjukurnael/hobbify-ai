@@ -9,7 +9,7 @@ import {
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { bookingsApi } from "@/services/api";
+import { authApi, bookingsApi } from "@/services/api";
 import type { Class } from "@/types";
 import { format } from "date-fns";
 import { Calendar, Clock, DollarSign, User } from "lucide-react";
@@ -23,21 +23,15 @@ interface BookingModalProps {
 
 export const BookingModal = ({ isOpen, onClose, classData, onBookingComplete }: BookingModalProps) => {
   const { toast } = useToast();
-  
-  // Safely get auth context with error handling
-  let user = null;
-  let login = () => {};
-  
-  try {
-    const auth = useAuth();
-    user = auth.user;
-    login = auth.login;
-  } catch (error) {
-    console.error("Auth context not available in BookingModal");
-  }
-  
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const spotsLeft = classData.maxCapacity - classData.currentCapacity;
+  
+  const handleLogin = () => {
+    onClose();
+    authApi.initiateGoogleLogin('customer');
+  };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +42,7 @@ export const BookingModal = ({ isOpen, onClose, classData, onBookingComplete }: 
         description: "Please sign in to book a class",
         variant: "destructive",
       });
-      onClose();
-      login();
+      handleLogin();
       return;
     }
     
@@ -135,29 +128,39 @@ export const BookingModal = ({ isOpen, onClose, classData, onBookingComplete }: 
             </div>
           ) : (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm text-amber-900">
+              <p className="text-sm text-amber-900 mb-2">
                 You need to sign in to book a class
               </p>
+              <Button 
+                onClick={handleLogin}
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                Sign In with Google
+              </Button>
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSubmit}
-              disabled={isSubmitting || spotsLeft === 0 || !user}
-              className="flex-1"
-            >
-              {isSubmitting ? "Booking..." : "Confirm Booking"}
-            </Button>
-          </div>
+          {user && (
+            <div className="flex gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit}
+                disabled={isSubmitting || spotsLeft === 0}
+                className="flex-1"
+              >
+                {isSubmitting ? "Booking..." : "Confirm Booking"}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

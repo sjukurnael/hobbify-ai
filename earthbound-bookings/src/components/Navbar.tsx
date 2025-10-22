@@ -1,110 +1,109 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/services/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Calendar, LogOut, Building2 } from "lucide-react";
+import { User, LogOut, Calendar, LayoutDashboard } from "lucide-react";
 
-export const Navbar = () => {
-  const { user, loading, login, logout, isStudioOwner } = useAuth();
+export function Navbar() {
+  const { user, loading, isAdmin, isInstructor, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
+  const handleLogin = (role: 'customer' | 'studio-owner' = 'customer') => {
+    authApi.initiateGoogleLogin(role);
+  };
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav className="border-b bg-card">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to="/" className="font-display text-2xl font-bold text-primary">
-          Serenity Studio
+        <Link to="/" className="text-2xl font-bold text-primary">
+          Serenity
         </Link>
-        
+
         <div className="flex items-center gap-6">
-          {/* Show different links based on user role */}
-          {!isStudioOwner && (
-            <Link to="/classes" className="text-sm font-medium transition-colors hover:text-primary">
-              Classes
-            </Link>
-          )}
-          
+          <Link
+            to="/classes"
+            className="text-sm font-medium text-foreground/80 hover:text-foreground"
+          >
+            Classes
+          </Link>
+
           {!loading && (
             <>
               {user ? (
                 <>
-                  {!isStudioOwner && (
-                    <Link to="/my-bookings" className="text-sm font-medium transition-colors hover:text-primary">
-                      My Bookings
-                    </Link>
+                  <Link
+                    to="/my-bookings"
+                    className="text-sm font-medium text-foreground/80 hover:text-foreground"
+                  >
+                    My Bookings
+                  </Link>
+
+                  {(isAdmin || isInstructor) && (
+                    <>
+                      <Link
+                        to="/studio"
+                        className="text-sm font-medium text-foreground/80 hover:text-foreground"
+                      >
+                        Studio
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          className="text-sm font-medium text-foreground/80 hover:text-foreground"
+                        >
+                          Admin
+                        </Link>
+                      )}
+                    </>
                   )}
-                  
-                  {isStudioOwner && (
-                    <Link to="/studio" className="text-sm font-medium transition-colors hover:text-primary">
-                      Studio
-                    </Link>
-                  )}
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.profilePicture} alt={user.firstName} />
-                          <AvatarFallback>
-                            {user.firstName[0]}{user.lastName[0]}
-                          </AvatarFallback>
-                        </Avatar>
+                      <Button variant="ghost" size="sm">
+                        <User className="mr-2 h-4 w-4" />
+                        {user.firstName}
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">
-                            {user.firstName} {user.lastName}
-                          </p>
-                          <p className="text-xs leading-none text-muted-foreground">
-                            {user.email}
-                          </p>
-                          <p className="text-xs leading-none text-muted-foreground capitalize">
-                            {user.role === 'admin' ? 'Studio Owner' : user.role}
-                          </p>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      
-                      {!isStudioOwner && (
-                        <>
-                          <DropdownMenuItem asChild>
-                            <Link to="/my-bookings" className="cursor-pointer">
-                              <Calendar className="mr-2 h-4 w-4" />
-                              My Bookings
-                            </Link>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      
-                      {isStudioOwner && (
-                        <DropdownMenuItem asChild>
-                          <Link to="/studio" className="cursor-pointer">
-                            <Building2 className="mr-2 h-4 w-4" />
-                            Studio Dashboard
-                          </Link>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate("/my-bookings")}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        My Bookings
+                      </DropdownMenuItem>
+                      {(isAdmin || isInstructor) && (
+                        <DropdownMenuItem onClick={() => navigate("/studio")}>
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Studio
                         </DropdownMenuItem>
                       )}
-                      
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                      <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="mr-2 h-4 w-4" />
-                        Log out
+                        Logout
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </>
               ) : (
-                <Button onClick={login}>
-                  Sign in with Google
-                </Button>
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => handleLogin('customer')}>
+                    Sign In
+                  </Button>
+                  <Button size="sm" onClick={() => handleLogin('studio-owner')}>
+                    Studio Owner Login
+                  </Button>
+                </>
               )}
             </>
           )}
@@ -112,4 +111,4 @@ export const Navbar = () => {
       </div>
     </nav>
   );
-};
+}

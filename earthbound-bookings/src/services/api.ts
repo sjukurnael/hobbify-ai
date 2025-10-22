@@ -1,15 +1,33 @@
 import type { User, Class, Booking, CreateClassData, CreateBookingData } from "@/types";
 
-// Base URL for API - update this with your deployed backend URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-// Helper to make authenticated requests with credentials
+// Token management
+const TOKEN_KEY = 'auth_token';
+
+export const tokenManager = {
+  getToken: (): string | null => {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+  
+  setToken: (token: string): void => {
+    localStorage.setItem(TOKEN_KEY, token);
+  },
+  
+  removeToken: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+  },
+};
+
+// Helper to make authenticated requests with JWT
 const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const token = tokenManager.getToken();
+  
   return fetch(url, {
     ...options,
-    credentials: 'include', // Include session cookies
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
   });
@@ -28,7 +46,7 @@ export const authApi = {
   },
   
   logout: async () => {
-    await authFetch(`${API_BASE_URL}/auth/logout`);
+    tokenManager.removeToken();
     window.location.href = "/";
   },
 };
@@ -48,7 +66,7 @@ export const usersApi = {
   },
 };
 
-// Classes API - FIXED: Now uses authFetch
+// Classes API
 export const classesApi = {
   getAll: async (): Promise<Class[]> => {
     const response = await authFetch(`${API_BASE_URL}/api/classes`);
