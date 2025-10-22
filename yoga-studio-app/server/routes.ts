@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer } from "http";
 import passport from "./auth.js";
 import { storage } from "./storage.js";
+import { generateToken } from "./jwt.js";
+import { authenticateToken, requireStudioOwner, type AuthRequest } from "./middleware.js";
 import { insertUserSchema, insertClassSchema, insertBookingSchema } from "../shared/schema.js";
 
 export async function registerRoutes(app: Express) {
@@ -19,81 +21,43 @@ export async function registerRoutes(app: Express) {
     }
   );
 
-  // Google OAuth callback
+  // Google OAuth callback - NOW RETURNS JWT TOKEN
   app.get('/auth/google/callback',
-    (req, res, next) => {
-      console.log('🔵 CALLBACK HIT!');
-      console.log('Query params:', req.query);
-      next();
-    },
-    passport.authenticate('google', {
-      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:8080'}`
-    }),
+    passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/?error=auth-failed` }),
     (req, res) => {
-      console.log('✅ AUTH SUCCESS');
-      console.log('User:', req.user);
-      console.log('Session ID:', req.sessionID);
-      console.log('Session:', req.session);
-      
-      const intendedRole = (req.session as any).intendedRole;
       const user = req.user as any;
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
       
       if (!user) {
-        console.log('❌ No user after auth');
-        return res.redirect(`${frontendUrl}/classes?error=no-user`);
+        return res.redirect(`${process.env.FRONTEND_URL}/?error=no-user`);
       }
+
+      // Generate JWT token
+      const token = generateToken(user);
       
-      // Save session before redirect
-      req.session.save((err) => {
-        if (err) {
-          console.error('❌ Session save error:', err);
-          return res.redirect(`${frontendUrl}/classes?error=session-failed`);
-        }
-        
-        console.log('💾 Session saved successfully');
-        console.log('📤 Cookies will be set');
-        
-        // Manually set cookie header for debugging
-        const cookies = res.getHeader('Set-Cookie');
-        console.log('🍪 Set-Cookie:', cookies);
-        
-        if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
-          console.log('↪️ Redirecting to classes (not authorized)');
-          res.redirect(`${frontendUrl}/classes?message=not-authorized`);
-        } else if (intendedRole === 'studio-owner' && (user.role === 'admin' || user.role === 'instructor')) {
-          console.log('↪️ Redirecting to studio');
-          res.redirect(`${frontendUrl}/studio`);
-        } else {
-          console.log('↪️ Redirecting to classes');
-          res.redirect(`${frontendUrl}/classes`);
-        }
-      });
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+      
+      // Redirect with token in URL (frontend will store it)
+      if (user.role === 'admin' || user.role === 'instructor') {
+        res.redirect(`${frontendUrl}/studio?token=${token}`);
+      } else {
+        res.redirect(`${frontendUrl}/classes?token=${token}`);
+      }
     }
   );
 
-  app.get('/auth/logout', (req, res) => {
-    req.logout(() => {
-      res.redirect(process.env.FRONTEND_URL || 'http://localhost:8080');
-    });
+  // Get current user from JWT token
+  app.get('/auth/me', authenticateToken, (req: AuthRequest, res) => {
+    res.json(req.user);
   });
 
-  app.get('/auth/me', (req, res) => {
-    console.log('🔍 /auth/me called');
-    console.log('Session ID:', req.sessionID);
-    console.log('Authenticated:', req.isAuthenticated());
-    console.log('User:', req.user);
-    
-    if (req.isAuthenticated()) {
-      res.json(req.user);
-    } else {
-      res.status(401).json({ message: 'Not authenticated' });
-    }
+  // Logout (just tell frontend to delete token)
+  app.post('/auth/logout', (req, res) => {
+    res.json({ message: 'Logged out successfully' });
   });
 
   // ========== USER ROUTES ==========
   
-  app.get("/api/users", async (req, res) => {
+  app.get("/api/users", authenticateToken, async (req, res) => {
     try {
       const users = await storage.getUsers();
       res.json(users);
@@ -102,7 +66,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.get("/api/users/:id", async (req, res) => {
+  app.get("/api/users/:id", authenticateToken, async (req, res) => {
     try {
       const requestedId = parseInt(req.params.id);
       
@@ -117,19 +81,6 @@ export async function registerRoutes(app: Express) {
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
-  app.post("/api/users", async (req, res) => {
-    try {
-      const validatedData = insertUserSchema.parse(req.body);
-      const newUser = await storage.createUser(validatedData);
-      res.status(201).json(newUser);
-    } catch (error: any) {
-      if (error.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create user" });
     }
   });
 
@@ -173,7 +124,7 @@ export async function registerRoutes(app: Express) {
 
   // ========== BOOKING ROUTES ==========
   
-  app.get("/api/bookings", async (req, res) => {
+  app.get("/api/bookings", authenticateToken, async (req, res) => {
     try {
       const bookings = await storage.getBookings();
       res.json(bookings);
@@ -182,7 +133,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.get("/api/bookings/user/:userId", async (req, res) => {
+  app.get("/api/bookings/user/:userId", authenticateToken, async (req, res) => {
     try {
       const requestedUserId = parseInt(req.params.userId);
       
@@ -197,9 +148,9 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.get("/api/bookings/class/:classId", async (req, res) => {
+  app.get("/api/bookings/class/:classId", authenticateToken, async (req, res) => {
     try {
-      const classId = parseInt(req.params.classId);
+      const classId = parseInt(req.params.id);
       
       if (isNaN(classId)) {
         return res.status(400).json({ message: "Invalid class ID" });
@@ -212,17 +163,13 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/bookings", async (req, res) => {
+  app.post("/api/bookings", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      // Check authentication
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Must be logged in to book a class" });
-      }
-  
-      // Use authenticated user's ID instead of trusting request body
+      const user = req.user as any;
+      
       const validatedData = insertBookingSchema.parse({
         classId: req.body.classId,
-        userId: (req.user as any).id, // ← Get from session
+        userId: user.id,
       });
       
       const newBooking = await storage.createBooking(validatedData);
@@ -241,7 +188,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/bookings/:id/cancel", async (req, res) => {
+  app.patch("/api/bookings/:id/cancel", authenticateToken, async (req, res) => {
     try {
       const bookingId = parseInt(req.params.id);
       
@@ -259,25 +206,10 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // ========== STUDIO OWNER ROUTES (Protected) ==========
+  // ========== STUDIO OWNER ROUTES ==========
 
-  const requireStudioOwner = (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-    
-    if (req.user.role !== 'admin' && req.user.role !== 'instructor') {
-      return res.status(403).json({ message: 'Access denied. Studio owner access required.' });
-    }
-    
-    next();
-  };
-
-  // ⚠️ FIXED: Only ONE POST /api/classes route
-  app.post("/api/classes", requireStudioOwner, async (req, res) => {
+  app.post("/api/classes", authenticateToken, requireStudioOwner, async (req, res) => {
     try {
-      console.log("Received data:", req.body);
-      
       const dataWithDates = {
         ...req.body,
         startTime: new Date(req.body.startTime),
@@ -288,7 +220,6 @@ export async function registerRoutes(app: Express) {
       const newClass = await storage.createClass(validatedData);
       res.status(201).json(newClass);
     } catch (error: any) {
-      console.error("Error details:", error);
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid class data", errors: error.errors });
       }
@@ -296,7 +227,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/classes/:id", requireStudioOwner, async (req, res) => {
+  app.patch("/api/classes/:id", authenticateToken, requireStudioOwner, async (req, res) => {
     try {
       const classId = parseInt(req.params.id);
       
@@ -320,7 +251,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/classes/:id", requireStudioOwner, async (req, res) => {
+  app.delete("/api/classes/:id", authenticateToken, requireStudioOwner, async (req, res) => {
     try {
       const classId = parseInt(req.params.id);
       
