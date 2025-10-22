@@ -35,11 +35,11 @@ export const classes = pgTable("classes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Bookings table (applications)
+// Bookings table
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
-    .notNull()
+.notNull()
     .references(() => users.id),
   classId: integer("class_id")
     .notNull()
@@ -75,21 +75,32 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
 }));
 
 // Zod schemas for validation
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
+export const insertUserSchema = z.object({
+  email: z.string().email(),
+  passwordHash: z.string(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  phone: z.string().nullable().optional(),
+  role: z.enum(['admin', 'instructor', 'member']).optional(),
 });
 
-export const insertClassSchema = createInsertSchema(classes).omit({
-  id: true,
-  createdAt: true,
+export const insertClassSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  instructorId: z.number().int().positive(),
+  startTime: z.date(),
+  endTime: z.date(),
+  maxCapacity: z.number().int().positive().default(20),
+  currentCapacity: z.number().int().min(0).optional().default(0),
+  price: z.string().regex(/^\d+(\.\d{2})?$/),
 });
 
-export const insertBookingSchema = createInsertSchema(bookings).omit({
-  id: true,
-  createdAt: true,
+export const insertBookingSchema = z.object({
+  userId: z.number().positive(),
+  classId: z.number().positive(),
+  status: z.enum(['confirmed', 'waitlist', 'cancelled']).optional(),
+  bookingDate: z.date().optional(),
 });
-// ✅ REMOVED .extend() - userId is now REQUIRED
 
 // TypeScript types
 export type User = typeof users.$inferSelect;

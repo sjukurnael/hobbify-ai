@@ -8,83 +8,86 @@ export async function registerRoutes(app: Express) {
   // ========== AUTH ROUTES ==========
   
   // Initiate Google OAuth login with role preference
-app.get('/auth/google',
-  (req, res, next) => {
-    const intendedRole = req.query.role as string; // 'customer' or 'studio-owner'
-    
-    // Store role preference in state parameter
-    passport.authenticate('google', {
-      scope: ['profile', 'email'],
-      state: intendedRole || 'customer'
-    })(req, res, next);
-  }
-);
-
-// Google OAuth callback
-app.get('/auth/google/callback',
-  (req, res, next) => {
-    console.log('🔵 CALLBACK HIT!');
-    console.log('Query params:', req.query);
-    next();
-  },
-  passport.authenticate('google', {
-    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:8080'}`
-  }),
-  (req, res) => {
-    console.log('✅ AUTH SUCCESS');
-    console.log('User:', req.user);
-    console.log('Session ID:', req.sessionID);
-    
-    const intendedRole = (req.session as any).intendedRole;
-    const user = req.user as any;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-    
-    if (!user) {
-      console.log('❌ No user after auth');
-      return res.redirect(`${frontendUrl}/classes?error=no-user`);
+  app.get('/auth/google',
+    (req, res, next) => {
+      const intendedRole = req.query.role as string;
+      
+      passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        state: intendedRole || 'customer'
+      })(req, res, next);
     }
-    
-    // ✅ EXPLICITLY SAVE SESSION BEFORE REDIRECT
-    req.session.save((err) => {
-      if (err) {
-        console.error('❌ Session save error:', err);
-        return res.redirect(`${frontendUrl}/classes?error=session-failed`);
+  );
+
+  // Google OAuth callback
+  app.get('/auth/google/callback',
+    (req, res, next) => {
+      console.log('🔵 CALLBACK HIT!');
+      console.log('Query params:', req.query);
+      next();
+    },
+    passport.authenticate('google', {
+      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:8080'}`
+    }),
+    (req, res) => {
+      console.log('✅ AUTH SUCCESS');
+      console.log('User:', req.user);
+      console.log('Session ID:', req.sessionID);
+      
+      const intendedRole = (req.session as any).intendedRole;
+      const user = req.user as any;
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+      
+      if (!user) {
+        console.log('❌ No user after auth');
+        return res.redirect(`${frontendUrl}/classes?error=no-user`);
       }
       
-      console.log('💾 Session saved successfully');
-      console.log('📤 Set-Cookie header:', res.getHeader('Set-Cookie'));
-      
-      if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
-        console.log('↪️ Redirecting to classes (not authorized)');
-        res.redirect(`${frontendUrl}/classes?message=not-authorized`);
-      } else if (intendedRole === 'studio-owner' && (user.role === 'admin' || user.role === 'instructor')) {
-        console.log('↪️ Redirecting to studio');
-        res.redirect(`${frontendUrl}/studio`);
-      } else {
-        console.log('↪️ Redirecting to classes');
-        res.redirect(`${frontendUrl}/classes`);
-      }
+      // Save session before redirect
+      req.session.save((err) => {
+        if (err) {
+          console.error('❌ Session save error:', err);
+          return res.redirect(`${frontendUrl}/classes?error=session-failed`);
+        }
+        
+        console.log('💾 Session saved successfully');
+        console.log('📤 Set-Cookie header:', res.getHeader('Set-Cookie'));
+        
+        if (intendedRole === 'studio-owner' && user.role !== 'admin' && user.role !== 'instructor') {
+          console.log('↪️ Redirecting to classes (not authorized)');
+          res.redirect(`${frontendUrl}/classes?message=not-authorized`);
+        } else if (intendedRole === 'studio-owner' && (user.role === 'admin' || user.role === 'instructor')) {
+          console.log('↪️ Redirecting to studio');
+          res.redirect(`${frontendUrl}/studio`);
+        } else {
+          console.log('↪️ Redirecting to classes');
+          res.redirect(`${frontendUrl}/classes`);
+        }
+      });
+    }
+  );
+
+  app.get('/auth/logout', (req, res) => {
+    req.logout(() => {
+      res.redirect(process.env.FRONTEND_URL || 'http://localhost:8080');
     });
-  }
-);
-
-app.get('/auth/logout', (req, res) => {
-  req.logout(() => {
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:8080');
   });
-});
 
-app.get('/auth/me', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json(req.user);
-  } else {
-    res.status(401).json({ message: 'Not authenticated' });
-  }
-});
+  app.get('/auth/me', (req, res) => {
+    console.log('🔍 /auth/me called');
+    console.log('Session ID:', req.sessionID);
+    console.log('Authenticated:', req.isAuthenticated());
+    console.log('User:', req.user);
+    
+    if (req.isAuthenticated()) {
+      res.json(req.user);
+    } else {
+      res.status(401).json({ message: 'Not authenticated' });
+    }
+  });
 
   // ========== USER ROUTES ==========
   
-  // Get all users
   app.get("/api/users", async (req, res) => {
     try {
       const users = await storage.getUsers();
@@ -94,7 +97,6 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Get single user
   app.get("/api/users/:id", async (req, res) => {
     try {
       const requestedId = parseInt(req.params.id);
@@ -113,7 +115,6 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Create user
   app.post("/api/users", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
@@ -129,7 +130,6 @@ app.get('/auth/me', (req, res) => {
 
   // ========== CLASS ROUTES ==========
   
-  // Get all classes (Public)
   app.get("/api/classes", async (req, res) => {
     try {
       const classes = await storage.getClasses();
@@ -139,7 +139,6 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Get upcoming classes (Public) - MUST BE BEFORE :id route
   app.get("/api/classes/upcoming", async (req, res) => {
     try {
       const classes = await storage.getUpcomingClasses();
@@ -149,7 +148,6 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Get single class (Public) - MUST BE AFTER upcoming route
   app.get("/api/classes/:id", async (req, res) => {
     try {
       const classId = parseInt(req.params.id);
@@ -168,33 +166,8 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Create class
-  app.post("/api/classes", async (req, res) => {
-    try {
-      console.log("Received data:", req.body);
-      
-      // Convert date strings to Date objects
-      const dataWithDates = {
-        ...req.body,
-        startTime: new Date(req.body.startTime),
-        endTime: new Date(req.body.endTime),
-      };
-      
-      const validatedData = insertClassSchema.parse(dataWithDates);
-      const newClass = await storage.createClass(validatedData);
-      res.status(201).json(newClass);
-    } catch (error: any) {
-      console.error("Error details:", error);
-      if (error.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid class data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create class" });
-    }
-  });
-
   // ========== BOOKING ROUTES ==========
   
-  // Get all bookings
   app.get("/api/bookings", async (req, res) => {
     try {
       const bookings = await storage.getBookings();
@@ -204,7 +177,6 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Get user's bookings
   app.get("/api/bookings/user/:userId", async (req, res) => {
     try {
       const requestedUserId = parseInt(req.params.userId);
@@ -220,7 +192,6 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Get class bookings
   app.get("/api/bookings/class/:classId", async (req, res) => {
     try {
       const classId = parseInt(req.params.classId);
@@ -236,31 +207,35 @@ app.get('/auth/me', (req, res) => {
     }
   });
 
-  // Create booking
   app.post("/api/bookings", async (req, res) => {
     try {
-      const validatedData = insertBookingSchema.parse(req.body);
+      // Check authentication
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Must be logged in to book a class" });
+      }
+  
+      // Use authenticated user's ID instead of trusting request body
+      const validatedData = insertBookingSchema.parse({
+        classId: req.body.classId,
+        userId: (req.user as any).id, // ← Get from session
+      });
       
       const newBooking = await storage.createBooking(validatedData);
-      
       res.status(201).json(newBooking);
     } catch (error: any) {
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid booking data", errors: error.errors });
       }
-      
       if (error.message === "Class not found") {
         return res.status(404).json({ message: "Class not found" });
       }
       if (error.message === "Class is full") {
         return res.status(400).json({ message: "Class is full" });
       }
-      
       res.status(500).json({ message: "Failed to create booking" });
     }
   });
 
-  // Cancel booking
   app.patch("/api/bookings/:id/cancel", async (req, res) => {
     try {
       const bookingId = parseInt(req.params.id);
@@ -281,87 +256,82 @@ app.get('/auth/me', (req, res) => {
 
   // ========== STUDIO OWNER ROUTES (Protected) ==========
 
-// Middleware to check if user is admin/instructor
-const requireStudioOwner = (req: any, res: any, next: any) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Not authenticated' });
-  }
-  
-  if (req.user.role !== 'admin' && req.user.role !== 'instructor') {
-    return res.status(403).json({ message: 'Access denied. Studio owner access required.' });
-  }
-  
-  next();
-};
+  const requireStudioOwner = (req: any, res: any, next: any) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
+    if (req.user.role !== 'admin' && req.user.role !== 'instructor') {
+      return res.status(403).json({ message: 'Access denied. Studio owner access required.' });
+    }
+    
+    next();
+  };
 
-// Update class (studio owners only)
-app.patch("/api/classes/:id", requireStudioOwner, async (req, res) => {
-  try {
-    const classId = parseInt(req.params.id);
-    
-    if (isNaN(classId)) {
-      return res.status(400).json({ message: "Invalid class ID" });
+  // ⚠️ FIXED: Only ONE POST /api/classes route
+  app.post("/api/classes", requireStudioOwner, async (req, res) => {
+    try {
+      console.log("Received data:", req.body);
+      
+      const dataWithDates = {
+        ...req.body,
+        startTime: new Date(req.body.startTime),
+        endTime: new Date(req.body.endTime),
+      };
+      
+      const validatedData = insertClassSchema.parse(dataWithDates);
+      const newClass = await storage.createClass(validatedData);
+      res.status(201).json(newClass);
+    } catch (error: any) {
+      console.error("Error details:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid class data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create class" });
     }
-    
-    const validatedData = insertClassSchema.partial().parse(req.body);
-    const updatedClass = await storage.updateClass(classId, validatedData);
-    
-    if (!updatedClass) {
-      return res.status(404).json({ message: "Class not found" });
-    }
-    
-    res.json(updatedClass);
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      return res.status(400).json({ message: "Invalid class data", errors: error.errors });
-    }
-    res.status(500).json({ message: "Failed to update class" });
-  }
-});
+  });
 
-// Delete class (studio owners only)
-app.delete("/api/classes/:id", requireStudioOwner, async (req, res) => {
-  try {
-    const classId = parseInt(req.params.id);
-    
-    if (isNaN(classId)) {
-      return res.status(400).json({ message: "Invalid class ID" });
+  app.patch("/api/classes/:id", requireStudioOwner, async (req, res) => {
+    try {
+      const classId = parseInt(req.params.id);
+      
+      if (isNaN(classId)) {
+        return res.status(400).json({ message: "Invalid class ID" });
+      }
+      
+      const validatedData = insertClassSchema.partial().parse(req.body);
+      const updatedClass = await storage.updateClass(classId, validatedData);
+      
+      if (!updatedClass) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+      
+      res.json(updatedClass);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid class data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update class" });
     }
-    
-    await storage.deleteClass(classId);
-    res.json({ message: "Class deleted successfully" });
-  } catch (error: any) {
-    if (error.message === "Class not found") {
-      return res.status(404).json({ message: "Class not found" });
-    }
-    res.status(500).json({ message: "Failed to delete class" });
-  }
-});
+  });
 
-// Protect existing POST route
-app.post("/api/classes", requireStudioOwner, async (req, res) => {
-  // Your existing create class logic...
-  try {
-    console.log("Received data:", req.body);
-    
-    // Convert date strings to Date objects
-    const dataWithDates = {
-      ...req.body,
-      startTime: new Date(req.body.startTime),
-      endTime: new Date(req.body.endTime),
-    };
-    
-    const validatedData = insertClassSchema.parse(dataWithDates);
-    const newClass = await storage.createClass(validatedData);
-    res.status(201).json(newClass);
-  } catch (error: any) {
-    console.error("Error details:", error);
-    if (error.name === "ZodError") {
-      return res.status(400).json({ message: "Invalid class data", errors: error.errors });
+  app.delete("/api/classes/:id", requireStudioOwner, async (req, res) => {
+    try {
+      const classId = parseInt(req.params.id);
+      
+      if (isNaN(classId)) {
+        return res.status(400).json({ message: "Invalid class ID" });
+      }
+      
+      await storage.deleteClass(classId);
+      res.json({ message: "Class deleted successfully" });
+    } catch (error: any) {
+      if (error.message === "Class not found") {
+        return res.status(404).json({ message: "Class not found" });
+      }
+      res.status(500).json({ message: "Failed to delete class" });
     }
-    res.status(500).json({ message: "Failed to create class" });
-  }
-});
+  });
 
   const httpServer = createServer(app);
   return httpServer;

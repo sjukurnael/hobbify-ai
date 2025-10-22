@@ -15,7 +15,6 @@ app.use(cors({
   credentials: true,
 }));
 
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -23,13 +22,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret',
   resave: false,
   saveUninitialized: false,
-  proxy: true,  // ← Add this - trust Railway's proxy
+  proxy: true,  // Trust Railway's proxy
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000,
-    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined  // ← Add this
+    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined
   }
 }));
 
@@ -39,7 +38,6 @@ app.use(passport.session());
 (async () => {
   const server = await registerRoutes(app);
 
-  // ✅ Convert PORT to a number
   const PORT = parseInt(process.env.PORT || '3000', 10);
   
   server.listen(PORT, "0.0.0.0", () => {
