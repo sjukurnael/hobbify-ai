@@ -5,11 +5,17 @@ import { Navbar } from "@/components/Navbar";
 import { CreateClassModal } from "@/components/CreateClassModal";
 import { classesApi } from "@/services/api";
 import type { Class } from "@/types";
-import { format, startOfWeek, addDays, addHours, setHours, setMinutes } from "date-fns";
+import { format, startOfWeek, addDays, addHours, setHours, setMinutes, isSameHour, isSameDay } from "date-fns";
 import { Loader2 } from "lucide-react";
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]; // 8am to 8pm
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+// Format price as Indonesian Rupiah
+const formatRupiah = (price: string | number): string => {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return `Rp ${numPrice.toLocaleString('id-ID')}`;
+};
 
 const Studio = () => {
   const { user, loading: authLoading, isAdmin, isInstructor } = useAuth();
@@ -55,13 +61,12 @@ const Studio = () => {
   const getClassesForSlot = (dayIndex: number, hour: number) => {
     const slotDate = addDays(weekStart, dayIndex);
     const slotStart = setMinutes(setHours(slotDate, hour), 0);
-    const slotEnd = addHours(slotStart, 1);
 
     return classes.filter((cls) => {
       const classStart = new Date(cls.startTime);
       return (
-        classStart >= slotStart &&
-        classStart < slotEnd
+        isSameDay(classStart, slotDate) &&
+        isSameHour(classStart, slotStart)
       );
     });
   };
@@ -117,29 +122,44 @@ const Studio = () => {
                   </td>
                   {DAYS.map((_, dayIndex) => {
                     const slotClasses = getClassesForSlot(dayIndex, hour);
+                    const hasClasses = slotClasses.length > 0;
+                    
                     return (
                       <td
                         key={dayIndex}
-                        className="p-2 cursor-pointer hover:bg-primary/5 transition-colors"
+                        className="p-2 cursor-pointer hover:bg-primary/5 transition-colors relative"
                         onClick={() => handleTimeSlotClick(dayIndex, hour)}
                       >
-                        {slotClasses.length > 0 ? (
-                          <div className="space-y-1">
+                        {hasClasses ? (
+                          <div className="flex flex-col gap-1 h-full min-h-[80px]">
                             {slotClasses.map((cls) => (
                               <div
                                 key={cls.id}
-                                className="text-xs p-2 rounded bg-primary/10 border border-primary/20 hover:bg-primary/20"
+                                className="rounded-md bg-primary/90 text-primary-foreground p-2 hover:bg-primary transition-colors flex-1 min-h-0 overflow-hidden"
                                 onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  height: `calc((100% - ${(slotClasses.length - 1) * 4}px) / ${slotClasses.length})`
+                                }}
                               >
-                                <div className="font-semibold truncate">{cls.title}</div>
-                                <div className="text-muted-foreground">
-                                  {cls.currentCapacity}/{cls.maxCapacity}
+                                <div className="text-xs font-semibold truncate">
+                                  {cls.title}
+                                </div>
+                                <div className="text-[10px] opacity-90 truncate">
+                                  {format(new Date(cls.startTime), "h:mm a")} - {format(new Date(cls.endTime), "h:mm a")}
+                                </div>
+                                {cls.instructor && (
+                                  <div className="text-[10px] opacity-80 truncate">
+                                    {cls.instructor.firstName} {cls.instructor.lastName}
+                                  </div>
+                                )}
+                                <div className="text-[10px] opacity-80 truncate">
+                                  {cls.currentCapacity}/{cls.maxCapacity} • {formatRupiah(cls.price)}
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="h-16 flex items-center justify-center text-muted-foreground text-xs">
+                          <div className="h-20 flex items-center justify-center text-muted-foreground text-xs">
                             +
                           </div>
                         )}
