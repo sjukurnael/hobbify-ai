@@ -58,6 +58,11 @@ const Studio = () => {
     setCreateModalOpen(true);
   };
 
+  // FIXED: Added callback to reload classes after creation
+  const handleCreateSuccess = () => {
+    loadClasses();
+  };
+
   const getClassesForSlot = (dayIndex: number, hour: number) => {
     const slotDate = addDays(weekStart, dayIndex);
     const slotStart = setMinutes(setHours(slotDate, hour), 0);
@@ -132,13 +137,15 @@ const Studio = () => {
                       >
                         {hasClasses ? (
                           <div className="flex flex-col gap-1 h-full min-h-[80px]">
-                            {slotClasses.map((cls) => (
+                            {slotClasses.map((cls, index) => (
                               <div
                                 key={cls.id}
-                                className="rounded-md bg-primary/90 text-primary-foreground p-2 hover:bg-primary transition-colors flex-1 min-h-0 overflow-hidden"
+                                className="rounded-md bg-primary/90 text-primary-foreground p-2 hover:bg-primary transition-colors overflow-hidden"
                                 onClick={(e) => e.stopPropagation()}
                                 style={{
-                                  height: `calc((100% - ${(slotClasses.length - 1) * 4}px) / ${slotClasses.length})`
+                                  // FIXED: Better height calculation for multiple classes
+                                  flex: 1,
+                                  minHeight: `${80 / slotClasses.length - 4}px`
                                 }}
                               >
                                 <div className="text-xs font-semibold truncate">
@@ -173,10 +180,11 @@ const Studio = () => {
         </div>
       </div>
 
+      {/* FIXED: Pass handleCreateSuccess callback */}
       <CreateClassModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
-        onSuccess={loadClasses}
+        onSuccess={handleCreateSuccess}
         defaultStartTime={selectedTimeSlot?.start}
         defaultEndTime={selectedTimeSlot?.end}
       />
