@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,20 @@ interface CreateClassModalProps {
   defaultEndTime?: Date;
 }
 
+// Format number with thousand separators (500000 → 500,000)
+const formatRupiah = (value: string): string => {
+  // Remove all non-digit characters
+  const numbers = value.replace(/\D/g, '');
+  
+  // Add thousand separators
+  return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+// Remove formatting to get raw number
+const parseRupiah = (value: string): string => {
+  return value.replace(/,/g, '');
+};
+
 export const CreateClassModal = ({
   open,
   onOpenChange,
@@ -31,14 +45,14 @@ export const CreateClassModal = ({
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    startTime: defaultStartTime ? format(defaultStartTime, "yyyy-MM-dd'T'HH:mm") : "",
-    endTime: defaultEndTime ? format(defaultEndTime, "yyyy-MM-dd'T'HH:mm") : "",
+    startTime: "",
+    endTime: "",
     maxCapacity: 20,
-    price: "25.00",
+    price: "25,000", // Default with formatting
   });
 
   // Update form when default times change
-  useState(() => {
+  useEffect(() => {
     if (defaultStartTime && defaultEndTime) {
       setFormData(prev => ({
         ...prev,
@@ -46,7 +60,12 @@ export const CreateClassModal = ({
         endTime: format(defaultEndTime, "yyyy-MM-dd'T'HH:mm"),
       }));
     }
-  });
+  }, [defaultStartTime, defaultEndTime]);
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatRupiah(e.target.value);
+    setFormData({ ...formData, price: formatted });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +82,9 @@ export const CreateClassModal = ({
     setLoading(true);
 
     try {
+      // Convert formatted price to raw number for API
+      const rawPrice = parseRupiah(formData.price);
+      
       await classesApi.create({
         title: formData.title,
         description: formData.description,
@@ -70,7 +92,7 @@ export const CreateClassModal = ({
         startTime: formData.startTime,
         endTime: formData.endTime,
         maxCapacity: formData.maxCapacity,
-        price: formData.price,
+        price: rawPrice, // Send raw number
       });
 
       toast({
@@ -88,7 +110,7 @@ export const CreateClassModal = ({
         startTime: "",
         endTime: "",
         maxCapacity: 20,
-        price: "25.00",
+        price: "25,000",
       });
     } catch (error) {
       toast({
@@ -109,6 +131,18 @@ export const CreateClassModal = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Instructor Name (Read-only) */}
+          {user && (
+            <div>
+              <Label>Instructor</Label>
+              <Input
+                value={`${user.firstName} ${user.lastName}`}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+          )}
+
           <div>
             <Label htmlFor="title">Class Title</Label>
             <Input
@@ -170,16 +204,21 @@ export const CreateClassModal = ({
             </div>
 
             <div>
-              <Label htmlFor="price">Price ($)</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                required
-              />
+              <Label htmlFor="price">Price (Rp)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  Rp
+                </span>
+                <Input
+                  id="price"
+                  type="text"
+                  value={formData.price}
+                  onChange={handlePriceChange}
+                  placeholder="25,000"
+                  className="pl-10"
+                  required
+                />
+              </div>
             </div>
           </div>
 

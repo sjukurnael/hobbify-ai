@@ -3,15 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, Clock, Users, DollarSign } from "lucide-react";
+import { Calendar, Clock, Users } from "lucide-react";
 import type { Class } from "@/types";
 import { format } from "date-fns";
 
 interface ClassCardProps {
   classData: Class;
   onBook: () => void;
-  // Remove image prop
 }
+
+// Format price as Indonesian Rupiah
+const formatRupiah = (price: string | number): string => {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return `Rp ${numPrice.toLocaleString('id-ID')}`;
+};
 
 export const ClassCard = ({ classData, onBook }: ClassCardProps) => {
   const spotsLeft = classData.maxCapacity - classData.currentCapacity;
@@ -21,25 +26,11 @@ export const ClassCard = ({ classData, onBook }: ClassCardProps) => {
 
   return (
     <Card className="overflow-hidden transition-smooth hover:shadow-elevated animate-scale-in">
-      {/* Remove this entire image section */}
-      {/* 
-      {image && (
-        <div className="aspect-video w-full overflow-hidden">
-          <img
-            src={image}
-            alt={classData.title}
-            className="h-full w-full object-cover transition-smooth hover:scale-105"
-          />
-        </div>
-      )}
-      */}
-      
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-xl">{classData.title}</CardTitle>
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <DollarSign className="h-3 w-3" />
-            {classData.price}
+          <Badge variant="secondary" className="flex items-center gap-1 whitespace-nowrap">
+            {formatRupiah(classData.price)}
           </Badge>
         </div>
         <CardDescription className="text-sm line-clamp-2">

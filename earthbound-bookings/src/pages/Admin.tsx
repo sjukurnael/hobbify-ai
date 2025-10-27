@@ -8,8 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Users, DollarSign } from "lucide-react";
+import { Calendar, Users, Coins } from "lucide-react";
 import { format } from "date-fns";
+
+// Format price as Indonesian Rupiah
+const formatRupiah = (price: string | number): string => {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return `Rp ${numPrice.toLocaleString('id-ID')}`;
+};
 
 const Admin = () => {
   const { user, loading: authLoading, isAdmin, isInstructor } = useAuth();
@@ -126,10 +132,10 @@ const Admin = () => {
               <CardTitle className="text-sm font-medium">
                 Total Revenue
               </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Coins className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{formatRupiah(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 From confirmed bookings
               </p>
@@ -146,7 +152,7 @@ const Admin = () => {
           <TabsContent value="classes" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">All Classes</h2>
-              <Button>Create New Class</Button>
+              <Button onClick={() => navigate("/studio")}>Create New Class</Button>
             </div>
             
             <div className="grid gap-4">
@@ -161,7 +167,7 @@ const Admin = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-semibold">${classItem.price}</p>
+                        <p className="text-lg font-semibold">{formatRupiah(classItem.price)}</p>
                         <p className="text-sm text-muted-foreground">
                           {classItem.currentCapacity}/{classItem.maxCapacity} booked
                         </p>
@@ -202,7 +208,7 @@ const Admin = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium capitalize">{booking.status}</p>
-                        <p className="text-sm text-muted-foreground">${booking.class?.price}</p>
+                        <p className="text-sm text-muted-foreground">{formatRupiah(booking.class?.price || 0)}</p>
                       </div>
                     </div>
                   </CardContent>

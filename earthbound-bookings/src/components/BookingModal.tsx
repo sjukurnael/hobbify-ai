@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authApi, bookingsApi } from "@/services/api";
 import type { Class } from "@/types";
 import { format } from "date-fns";
-import { Calendar, Clock, DollarSign, User } from "lucide-react";
+import { Calendar, Clock, User } from "lucide-react";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -20,6 +20,12 @@ interface BookingModalProps {
   classData: Class;
   onBookingComplete?: () => void;
 }
+
+// Format price as Indonesian Rupiah
+const formatRupiah = (price: string | number): string => {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return `Rp ${numPrice.toLocaleString('id-ID')}`;
+};
 
 export const BookingModal = ({ isOpen, onClose, classData, onBookingComplete }: BookingModalProps) => {
   const { toast } = useToast();
@@ -86,9 +92,8 @@ export const BookingModal = ({ isOpen, onClose, classData, onBookingComplete }: 
           <div className="rounded-lg bg-muted p-4 space-y-3">
             <div className="flex items-start justify-between">
               <h3 className="font-semibold text-lg">{classData.title}</h3>
-              <div className="flex items-center gap-1 text-sm font-medium">
-                <DollarSign className="h-4 w-4" />
-                {classData.price}
+              <div className="flex items-center gap-1 text-sm font-medium whitespace-nowrap">
+                {formatRupiah(classData.price)}
               </div>
             </div>
             

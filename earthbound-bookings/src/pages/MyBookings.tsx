@@ -7,9 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, DollarSign, User } from "lucide-react";
+import { Calendar, Clock, User } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
+
+// Format price as Indonesian Rupiah
+const formatRupiah = (price: string | number): string => {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return `Rp ${numPrice.toLocaleString('id-ID')}`;
+};
 
 const MyBookings = () => {
   const { user, loading: authLoading } = useAuth();
@@ -136,9 +142,8 @@ const MyBookings = () => {
                             {booking.class && format(new Date(booking.class.startTime), "h:mm a")}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <DollarSign className="h-4 w-4" />
-                          <span>{booking.class?.price}</span>
+                        <div className="flex items-center gap-2 text-muted-foreground font-medium">
+                          {booking.class && formatRupiah(booking.class.price)}
                         </div>
                         {booking.class?.instructor && (
                           <div className="flex items-center gap-2 text-muted-foreground">
@@ -191,6 +196,9 @@ const MyBookings = () => {
                         <span>
                           {booking.class && format(new Date(booking.class.startTime), "MMM d, yyyy")}
                         </span>
+                      </div>
+                      <div className="font-medium text-muted-foreground">
+                        {booking.class && formatRupiah(booking.class.price)}
                       </div>
                     </CardContent>
                   </Card>
