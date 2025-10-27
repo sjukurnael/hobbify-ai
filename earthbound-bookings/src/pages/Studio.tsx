@@ -5,7 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { CreateClassModal } from "@/components/CreateClassModal";
 import { classesApi } from "@/services/api";
 import type { Class } from "@/types";
-import { format, startOfWeek, addDays, addHours, setHours, setMinutes, isSameDay, getHours } from "date-fns";
+import { format, startOfWeek, addDays, addHours, setHours, setMinutes, isSameHour, isSameDay } from "date-fns";
 import { Loader2 } from "lucide-react";
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]; // 8am to 8pm
@@ -39,10 +39,8 @@ const Studio = () => {
   }, [user, authLoading, isAdmin, isInstructor, navigate]);
 
   const loadClasses = async () => {
-    setLoading(true);
     try {
       const allClasses = await classesApi.getAll();
-      console.log("📅 Loaded classes:", allClasses);
       setClasses(allClasses);
     } catch (error) {
       console.error("Failed to load classes:", error);
@@ -60,31 +58,22 @@ const Studio = () => {
     setCreateModalOpen(true);
   };
 
+  // FIXED: Added callback to reload classes after creation
   const handleCreateSuccess = () => {
-    console.log("✅ Class created, reloading...");
     loadClasses();
   };
 
-  // FIXED: Better filtering logic that handles timezones correctly
   const getClassesForSlot = (dayIndex: number, hour: number) => {
     const slotDate = addDays(weekStart, dayIndex);
+    const slotStart = setMinutes(setHours(slotDate, hour), 0);
 
-    const filteredClasses = classes.filter((cls) => {
+    return classes.filter((cls) => {
       const classStart = new Date(cls.startTime);
-      const classHour = getHours(classStart);
-      
-      const matchesDay = isSameDay(classStart, slotDate);
-      const matchesHour = classHour === hour;
-      
-      // Debug logging
-      if (matchesDay) {
-        console.log(`🔍 Class "${cls.title}" on ${format(classStart, "MMM d")} at ${classHour}:00 - Matches hour ${hour}? ${matchesHour}`);
-      }
-      
-      return matchesDay && matchesHour;
+      return (
+        isSameDay(classStart, slotDate) &&
+        isSameHour(classStart, slotStart)
+      );
     });
-
-    return filteredClasses;
   };
 
   if (authLoading || loading) {
@@ -98,17 +87,6 @@ const Studio = () => {
     );
   }
 
-  // Debug: Log all classes on render
-  useEffect(() => {
-    if (classes.length > 0) {
-      console.log("📊 Current classes in state:", classes.map(c => ({
-        title: c.title,
-        startTime: c.startTime,
-        parsed: new Date(c.startTime).toString()
-      })));
-    }
-  }, [classes]);
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -118,10 +96,6 @@ const Studio = () => {
           <h1 className="text-4xl font-bold mb-2">Studio Schedule</h1>
           <p className="text-muted-foreground">
             Click on any time slot to create a new class
-          </p>
-          {/* Debug info */}
-          <p className="text-sm text-muted-foreground mt-2">
-            Total classes loaded: {classes.length}
           </p>
         </div>
 
@@ -163,12 +137,13 @@ const Studio = () => {
                       >
                         {hasClasses ? (
                           <div className="flex flex-col gap-1 h-full min-h-[80px]">
-                            {slotClasses.map((cls) => (
+                            {slotClasses.map((cls, index) => (
                               <div
                                 key={cls.id}
                                 className="rounded-md bg-primary/90 text-primary-foreground p-2 hover:bg-primary transition-colors overflow-hidden"
                                 onClick={(e) => e.stopPropagation()}
                                 style={{
+                                  // FIXED: Better height calculation for multiple classes
                                   flex: 1,
                                   minHeight: `${80 / slotClasses.length - 4}px`
                                 }}
@@ -205,6 +180,7 @@ const Studio = () => {
         </div>
       </div>
 
+      {/* FIXED: Pass handleCreateSuccess callback */}
       <CreateClassModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
