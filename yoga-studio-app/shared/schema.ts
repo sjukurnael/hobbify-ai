@@ -39,7 +39,7 @@ export const classes = pgTable("classes", {
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
-.notNull()
+    .notNull()
     .references(() => users.id),
   classId: integer("class_id")
     .notNull()

@@ -14,6 +14,8 @@ export interface IStorage {
   getClass(id: number): Promise<any | undefined>;
   getUpcomingClasses(): Promise<any[]>;
   createClass(classData: InsertClass): Promise<Class>;
+  updateClass(id: number, classData: Partial<InsertClass>): Promise<Class | undefined>;
+  deleteClass(id: number): Promise<void>;
   
   // Booking operations
   getBookings(): Promise<any[]>;
@@ -100,6 +102,27 @@ export class DatabaseStorage implements IStorage {
       price: classData.price,
     }).returning();
     return newClass;
+  }
+
+  async updateClass(id: number, classData: Partial<InsertClass>): Promise<Class | undefined> {
+    const [updatedClass] = await db.update(classes)
+      .set(classData)
+      .where(eq(classes.id, id))
+      .returning();
+    return updatedClass;
+  }
+
+  async deleteClass(id: number): Promise<void> {
+    const classItem = await this.getClass(id);
+    if (!classItem) {
+      throw new Error("Class not found");
+    }
+    
+    // Delete associated bookings first
+    await db.delete(bookings).where(eq(bookings.classId, id));
+    
+    // Delete the class
+    await db.delete(classes).where(eq(classes.id, id));
   }
 
   // Bookings
@@ -197,27 +220,6 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(classes.id, booking.classId));
     }
-  }
-
-  async updateClass(id: number, classData: Partial<InsertClass>): Promise<Class | undefined> {
-    const [updatedClass] = await db.update(classes)
-      .set(classData)
-      .where(eq(classes.id, id))
-      .returning();
-    return updatedClass;
-  }
-
-  async deleteClass(id: number): Promise<void> {
-    const classItem = await this.getClass(id);
-    if (!classItem) {
-      throw new Error("Class not found");
-    }
-    
-    // Delete associated bookings first
-    await db.delete(bookings).where(eq(bookings.classId, id));
-    
-    // Delete the class
-    await db.delete(classes).where(eq(classes.id, id));
   }
 }
 

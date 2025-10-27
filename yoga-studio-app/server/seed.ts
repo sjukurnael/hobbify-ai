@@ -21,15 +21,15 @@ async function seed() {
     const insertedUsers = await db.insert(users)
       .values([
         {
-          email: "admin@yogastudio.com",
-          passwordHash: "hashed_password_123", // In production, use bcrypt
-          firstName: "Admin",
-          lastName: "User",
+          email: "hobbify.ai@gmail.com",
+          passwordHash: "hashed_password_123",
+          firstName: "Hobbify",
+          lastName: "AI",
           role: "admin",
           phone: "555-0100",
         },
         {
-          email: "sarah.jones@yogastudio.com",
+          email: "sarah.jones@example.com",
           passwordHash: "hashed_password_123",
           firstName: "Sarah",
           lastName: "Jones",
@@ -41,7 +41,7 @@ async function seed() {
           passwordHash: "hashed_password_123",
           firstName: "Mike",
           lastName: "Chen",
-          role: "member",
+          role: "instructor",
           phone: "555-0102",
         },
         {
@@ -76,7 +76,7 @@ async function seed() {
           endTime: new Date(tomorrow.setHours(10, 0, 0, 0)),
           maxCapacity: 20,
           currentCapacity: 0,
-          price: "25.00",
+          price: "50000",
         },
         {
           title: "Power Yoga",
@@ -86,7 +86,7 @@ async function seed() {
           endTime: new Date(tomorrow.setHours(19, 15, 0, 0)),
           maxCapacity: 15,
           currentCapacity: 0,
-          price: "30.00",
+          price: "60000",
         },
         {
           title: "Yin Yoga",
@@ -96,7 +96,7 @@ async function seed() {
           endTime: new Date(tomorrow.setHours(21, 0, 0, 0)),
           maxCapacity: 25,
           currentCapacity: 0,
-          price: "28.00",
+          price: "45000",
         },
       ])
       .returning();
@@ -114,20 +114,13 @@ async function seed() {
     });
     
     await storage.createBooking({
-      userId: members[1].id,
-      classId: insertedClasses[0].id,
-      status: "confirmed",
-      bookingDate: new Date(),
-    });
-    
-    await storage.createBooking({
       userId: members[0].id,
       classId: insertedClasses[1].id,
       status: "confirmed",
       bookingDate: new Date(),
     });
     
-    console.log(`✅ Inserted 3 bookings`);
+    console.log(`✅ Inserted 2 bookings`);
     
     console.log("✨ Seeding complete!");
   } catch (error) {
